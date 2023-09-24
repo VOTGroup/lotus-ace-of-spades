@@ -257,6 +257,8 @@ def get_spid_token(*, options: dict, opt_payload: str) -> str:
     spid_token = f"FIL-SPID-V0 {fil_current_epoch};{options.miner_id};{fil_authsig}"
     if b64_optional_payload:
         spid_token += f";{b64_optional_payload}"
+
+    log.debug(f"SPID created: {spid_token}")
     
     return spid_token
 
@@ -271,6 +273,7 @@ def lotus_request(*, url: str, token: str, method: str, params: dict) -> bool:
 
 @tenacity.retry(
     wait=tenacity.wait_exponential(min=1, max=6, multiplier=2),
+    stop=tenacity.stop_after_attempt(5),
     after=tenacity.after.after_log(log_retry, logging.INFO),
 )
 def make_lotus_request(*, url: str, token: str, method: str, params: dict) -> Any:
@@ -280,9 +283,11 @@ def make_lotus_request(*, url: str, token: str, method: str, params: dict) -> An
         "method": method,
         "params": params
     }
+    headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    log.debug(f"Making request to: {url} method: {method} params: {payload}")
     response = requests.post(
         url,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers=headers,
         json=payload
     )
     data = response.json()
@@ -425,9 +430,11 @@ def request_handler(*, url: str, method: str, parameters: dict) -> bool:
 
 @tenacity.retry(
     wait=tenacity.wait_exponential(min=1, max=6, multiplier=2),
+    stop=tenacity.stop_after_attempt(5),
     after=tenacity.after.after_log(log_retry, logging.INFO),
 )
 def make_request(*, url: str, method: str, parameters: dict) -> Any:
+    log.debug(f"Making request to: {url} method: {method} params: {parameters}")
     try:
         if method == "post":
             response = requests.post(url, **parameters)
@@ -481,6 +488,7 @@ def download(*, options: dict, source: str) -> bool:
 
 @tenacity.retry(
     wait=tenacity.wait_exponential(min=1, max=6, multiplier=2),
+    stop=tenacity.stop_after_attempt(5),
     after=tenacity.after.after_log(log_retry, logging.WARN),
 )
 def download_files(*, options: dict, source: str) -> bool:
@@ -517,6 +525,7 @@ def get_downloads() -> dict:
 
 @tenacity.retry(
     wait=tenacity.wait_exponential(min=1, max=6, multiplier=2),
+    stop=tenacity.stop_after_attempt(5),
     after=tenacity.after.after_log(log_retry, logging.WARN),
 )
 def get_aria_downloads() -> dict:
